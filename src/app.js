@@ -311,6 +311,12 @@ async function sendEmail() {
             body: body
         });
 
+        // Check if response is JSON
+        var contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error('Server returned non-JSON response (HTTP ' + res.status + '). The /api/send endpoint may not be deployed. Check that your CF Pages Functions are working.');
+        }
+
         var data = await res.json();
 
         if (res.ok && (data.ErrorCode === 0 || data.success)) {

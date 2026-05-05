@@ -51,4 +51,13 @@ HTMLEOF
 sed -i.bak '/<script src="/d' dist/index.html
 rm -f dist/index.html.bak
 
+# Add _routes.json so CF Pages knows to route /api/* to Functions
+cat > dist/_routes.json << 'EOF'
+{
+  "version": 1,
+  "include": ["/api/*"],
+  "exclude": []
+}
+EOF
+
 echo "Built dist/index.html ($(wc -c < dist/index.html | tr -d ' ') bytes)"
