@@ -16,6 +16,8 @@ Structure on your server:
 ```
 /your-site/
   index.html        ← app entry point (root)
+  webhook.php       ← GitHub auto-deploy endpoint
+  .env.example      ← env variable reference
   src/
     styles.css
     template.js
@@ -70,6 +72,77 @@ php -m | grep -E "curl|openssl"
 ```
 
 Both `curl` and `openssl` should be listed. These are enabled by default on most PHP installations.
+
+---
+
+## Auto-Deploy with GitHub Webhook
+
+The project includes a `webhook.php` that auto-deploys on every push to `main`.
+
+### How It Works
+
+```
+git push → GitHub → POST to webhook.php → git pull on server → site updated
+```
+
+### Environment Variables
+
+The webhook reads sensitive config from environment variables (never hardcoded):
+
+| Variable | Description |
+|----------|-------------|
+| `WEBHOOK_SECRET` | Secret key shared between GitHub and your server |
+| `DEPLOY_PATH` | Absolute path to the site root on the server |
+
+Copy `.env.example` to `.env` for local reference:
+
+```bash
+cp .env.example .env
+```
+
+### Server Setup (CloudPanel)
+
+1. **SSH into your server and clone the repo:**
+
+```bash
+ssh pmtester@your-server-ip
+cd /home/pmtester/htdocs/pmtester.ajithrn.com
+git clone https://github.com/your-username/your-repo.git .
+```
+
+2. **Set environment variables in the Vhost config:**
+
+In CloudPanel → Sites → your site → Vhost, add inside the `server` block:
+
+```nginx
+fastcgi_param WEBHOOK_SECRET "your-actual-secret-here";
+fastcgi_param DEPLOY_PATH "/home/pmtester/htdocs/pmtester.ajithrn.com";
+```
+
+3. **Configure the webhook on GitHub:**
+
+Go to your repo → Settings → Webhooks → Add webhook:
+
+| Field | Value |
+|-------|-------|
+| Payload URL | `https://pmtester.ajithrn.com/webhook.php` |
+| Content type | `application/json` |
+| Secret | Same value as `WEBHOOK_SECRET` on server |
+| Events | Just the push event |
+| Active | ✓ |
+
+4. **Test it:** Push a commit and check GitHub → Webhooks → Recent Deliveries for a green checkmark.
+
+### Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| 403 in GitHub deliveries | Secret mismatch between GitHub and server env |
+| 500 error | Check PHP error logs or missing env variables |
+| `shell_exec` not running | Check CloudPanel PHP → disable_functions |
+| Permission denied on git pull | Ensure site user owns the `.git` folder |
+
+Deploy log is written to `/home/pmtester/deploy-log.txt`.
 
 ---
 

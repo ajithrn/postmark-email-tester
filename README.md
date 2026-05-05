@@ -2,6 +2,8 @@
 
 A simple tool to test sending emails via [Postmark](https://postmarkapp.com) — supports both REST API and real SMTP sending.
 
+🔗 **Live URL:** [pmtester.ajithrn.com](https://pmtester.ajithrn.com)
+
 > Not affiliated with Postmark or ActiveCampaign.
 
 ## Features

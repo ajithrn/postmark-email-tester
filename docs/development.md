@@ -4,6 +4,9 @@
 
 ```
 index.html          ← App entry point (root)
+webhook.php         ← GitHub webhook for auto-deploy
+.env.example        ← Environment variable reference (safe to commit)
+.env                ← Local env values (git-ignored, never commit)
 src/
   styles.css        ← All styles (CSS Grid layout)
   template.js       ← Email HTML template generator
