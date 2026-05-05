@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postmark Email Tester</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23ffde00'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23ffde00'/></svg>">
+    <meta name="theme-color" content="#ffde00">
+    <!-- Set your Cloudflare Worker URL here to enable browser-based sending -->
+    <!-- <meta name="worker-url" content="https://your-worker.your-subdomain.workers.dev"> -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-wrap">
+        <header>
+            <h1><span>&#9679;</span> Postmark Email Tester</h1>
+            <p class="subtitle">Quick test tool for Postmark API &amp; SMTP email sending</p>
+            <span class="disclaimer">Independent tool &mdash; not affiliated with Postmark / ActiveCampaign</span>
+        </header>
+
+        <div class="two-col">
+            <!-- ═══ LEFT: Form ═══ -->
+            <main class="col-form">
+
+                <!-- Mode Selection -->
+                <div class="card">
+                    <div class="card-title">Send Method</div>
+                    <div class="mode-toggle">
+                        <button type="button" id="btnModeApi" class="active" onclick="setMode('api')">REST API</button>
+                        <button type="button" id="btnModeSmtp" onclick="setMode('smtp')">SMTP</button>
+                    </div>
+                    <p class="hint" id="modeHintApi">Send via HTTP POST to <strong>api.postmarkapp.com/email</strong>. Best for modern apps.</p>
+                    <p class="hint hidden" id="modeHintSmtp">Configure your app's SMTP settings to use Postmark as relay. Best for legacy/CMS.</p>
+                </div>
+
+                <!-- Server Token -->
+                <div class="card">
+                    <div class="card-title">Authentication</div>
+                    <label for="serverToken">Server API Token <span class="tooltip" aria-label="Where to find this: Log in to Postmark &rarr; select your Server &rarr; click API Tokens tab &rarr; copy the token. Each server has its own token.">?</span></label>
+                    <input type="password" id="serverToken" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+                    <p class="hint">Found in Postmark &rarr; Server &rarr; API Tokens. Use <strong>POSTMARK_API_TEST</strong> for dry-run.</p>
+                </div>
+
+                <!-- Sender -->
+                <div class="card">
+                    <div class="card-title">Sender</div>
+                    <div class="sender-toggle">
+                        <button type="button" id="btnVerifiedEmail" class="active" onclick="setSenderType('email')">Verified Email</button>
+                        <button type="button" id="btnVerifiedDomain" onclick="setSenderType('domain')">Verified Domain</button>
+                    </div>
+                    <div id="senderEmailGroup">
+                        <label for="senderEmail">From address <span class="tooltip" aria-label="Go to Postmark &rarr; Sender Signatures. Add and confirm your email. Once confirmed, you can send from it.">?</span></label>
+                        <input type="email" id="senderEmail" placeholder="you@company.com">
+                        <p class="hint">Must be a confirmed Sender Signature in Postmark.</p>
+                    </div>
+                    <div id="senderDomainGroup" class="hidden">
+                        <label>From address <span class="tooltip" aria-label="Go to Postmark &rarr; Sender Signatures &rarr; Add Domain. Verify via DNS (DKIM + Return-Path). Once verified, ANY address @yourdomain.com works as sender.">?</span></label>
+                        <div class="domain-row">
+                            <input type="text" id="domainLocalPart" placeholder="hello">
+                            <span class="at">@</span>
+                            <input type="text" id="domainName" placeholder="yourdomain.com">
+                        </div>
+                        <p class="hint">If domain is verified in Postmark, any address on it works.</p>
+                    </div>
+                </div>
+
+                <!-- Recipient -->
+                <div class="card">
+                    <div class="card-title">Recipient</div>
+                    <label for="recipientEmail">To</label>
+                    <input type="email" id="recipientEmail" placeholder="recipient@example.com">
+                    <p class="hint">Safe test sink: <strong>test@blackhole.postmarkapp.com</strong></p>
+                </div>
+
+                <!-- SMTP Config Display -->
+                <div class="card hidden" id="smtpSection">
+                    <div class="card-title">SMTP Configuration</div>
+                    <p class="hint" style="margin-bottom:0.5rem;">Use these settings in your application's mail config:</p>
+                    <div class="smtp-config">
+                        <div class="cfg-row"><span class="cfg-label">Host:</span><span class="cfg-value" id="smtpHost">smtp.postmarkapp.com</span></div>
+                        <div class="cfg-row"><span class="cfg-label">Port:</span><span class="cfg-value" id="smtpPort">587 (STARTTLS) or 443 (SSL)</span></div>
+                        <div class="cfg-row"><span class="cfg-label">Username:</span><span class="cfg-value" id="smtpUsername">(enter token above)</span></div>
+                        <div class="cfg-row"><span class="cfg-label">Password:</span><span class="cfg-value" id="smtpPassword">(enter token above)</span></div>
+                        <div class="cfg-row"><span class="cfg-label">From:</span><span class="cfg-value" id="smtpFrom">(enter sender above)</span></div>
+                        <div class="cfg-row"><span class="cfg-label">To:</span><span class="cfg-value" id="smtpTo">(enter recipient above)</span></div>
+                    </div>
+                    <div class="smtp-btn-row">
+                        <button type="button" class="copy-smtp-btn" onclick="copySmtpTestCommand()">Copy SMTP test command</button>
+                        <button type="button" class="copy-smtp-btn" onclick="toggleCodeExamples()">Show code examples</button>
+                    </div>
+
+                    <!-- Code Examples (toggled) -->
+                    <div class="code-examples hidden" id="codeExamples">
+                        <div class="code-tabs">
+                            <button type="button" class="code-tab active" data-tab="node" onclick="showTab('node')">Node.js</button>
+                            <button type="button" class="code-tab" data-tab="python" onclick="showTab('python')">Python</button>
+                            <button type="button" class="code-tab" data-tab="php" onclick="showTab('php')">PHP</button>
+                        </div>
+                        <pre class="code-block" id="codeNode"></pre>
+                        <pre class="code-block hidden" id="codePython"></pre>
+                        <pre class="code-block hidden" id="codePhp"></pre>
+                        <button type="button" class="copy-smtp-btn" style="margin-top:0.4rem;" onclick="copyCurrentCode()">Copy code</button>
+                    </div>
+                </div>
+
+                <!-- Message Section (both modes) -->
+                <div class="card" id="messageSection">
+                    <div class="card-title">Message</div>
+                    <label for="subject">Subject</label>
+                    <input type="text" id="subject" value="Postmark Test Email">
+                    <label for="htmlBody">HTML Body</label>
+                    <textarea id="htmlBody"></textarea>
+                    <span class="preview-toggle" onclick="togglePreview()">Preview email &#8599;</span>
+                    <div class="preview-frame" id="previewFrame">
+                        <iframe id="previewIframe" sandbox="allow-same-origin" title="Email preview"></iframe>
+                    </div>
+                </div>
+
+                <!-- Action Buttons (both modes) -->
+                <div class="btn-row" id="btnRow">
+                    <button type="button" class="btn-send" id="btnSend" onclick="sendEmail()">Send via API &rarr;</button>
+                    <button type="button" class="btn-curl" id="btnCurl" onclick="copyCurl()">Copy as cURL</button>
+                </div>
+                <div class="cors-note" id="corsNote">
+                    &#9888;&#65039; <strong>CORS blocked?</strong> Postmark blocks browser-side API calls to protect your token.
+                    Use <strong>Copy as cURL</strong> and run in terminal, or see the docs on the right.
+                </div>
+                <div class="result" id="result"></div>
+                <button type="button" class="btn-clear" onclick="clearAll()">Clear all data &amp; reset</button>
+
+            </main>
+
+            <!-- ═══ RIGHT: Info Panel ═══ -->
+            <aside class="col-info">
+
+                <!-- Developer Resources -->
+                <div class="info-block" id="dev-resources">
+                    <h2>Developer Resources</h2>
+                    <div class="resource-grid">
+                        <a class="resource-link" href="https://postmarkapp.com/developer/user-guide/send-email-with-api" target="_blank" rel="noopener">
+                            <span class="r-title">Send with API</span>
+                            <span class="r-desc">REST API quickstart guide</span>
+                        </a>
+                        <a class="resource-link" href="https://postmarkapp.com/developer/user-guide/send-email-with-smtp" target="_blank" rel="noopener">
+                            <span class="r-title">Send with SMTP</span>
+                            <span class="r-desc">Traditional SMTP relay setup</span>
+                        </a>
+                        <a class="resource-link" href="https://postmarkapp.com/developer/integration/official-libraries" target="_blank" rel="noopener">
+                            <span class="r-title">Official Libraries</span>
+                            <span class="r-desc">Node, Python, Ruby, PHP, .NET, Java</span>
+                        </a>
+                        <a class="resource-link" href="https://postmarkapp.com/developer/api/overview" target="_blank" rel="noopener">
+                            <span class="r-title">API Reference</span>
+                            <span class="r-desc">Full endpoint documentation</span>
+                        </a>
+                        <a class="resource-link" href="https://postmarkapp.com/developer/api/templates-api" target="_blank" rel="noopener">
+                            <span class="r-title">Templates API</span>
+                            <span class="r-desc">Server-side email templates</span>
+                        </a>
+                        <a class="resource-link" href="https://postmarkapp.com/developer/webhooks/webhooks-overview" target="_blank" rel="noopener">
+                            <span class="r-title">Webhooks</span>
+                            <span class="r-desc">Bounce, delivery, open tracking</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- FAQ -->
+                <div class="info-block faq-section">
+                    <h2>FAQ</h2>
+                    <details class="faq-item">
+                        <summary>Where do I find my Server API Token?</summary>
+                        <p>Log in to <a href="https://account.postmarkapp.com" target="_blank" rel="noopener">Postmark</a> &rarr; select your <strong>Server</strong> &rarr; click the <strong>API Tokens</strong> tab. Copy the Server API token shown there. Each server has its own unique token.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Verified email vs verified domain?</summary>
+                        <p><strong>Verified Email:</strong> You confirm a single address (Sender Signature). You can only send from that exact address.<br><strong>Verified Domain:</strong> You verify your entire domain via DNS (DKIM + Return-Path). Once verified, you can send from <em>any</em> address @yourdomain.com.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>How do I verify a domain?</summary>
+                        <p>Go to <strong>Sender Signatures</strong> &rarr; <strong>Add Domain</strong> &rarr; enter your domain. Postmark gives you DNS records (DKIM and Return-Path) to add at your DNS provider. Once propagated and confirmed, the domain is verified.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Why does Send fail with a network error?</summary>
+                        <p>Postmark blocks browser-side API calls (CORS) to protect your token. Use <strong>Copy as cURL</strong> and paste in your terminal. For production, always call Postmark from your server/backend.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>What is POSTMARK_API_TEST?</summary>
+                        <p>A special token for dry-run testing. Postmark validates your payload and returns success <em>without delivering</em> the email. Great for checking your request format.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>API vs SMTP &mdash; which should I use?</summary>
+                        <div class="faq-table-wrap">
+                            <table class="compare-table">
+                                <thead><tr><th></th><th>REST API</th><th>SMTP</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Speed</td><td>Fastest &mdash; HTTP POST</td><td>Slower &mdash; SMTP handshake</td></tr>
+                                    <tr><td>Auth</td><td>X-Postmark-Server-Token header</td><td>Username &amp; password = token</td></tr>
+                                    <tr><td>Features</td><td>Full (templates, tags, streams, batch)</td><td>Basic sending + headers</td></tr>
+                                    <tr><td>Best for</td><td>Modern apps, serverless</td><td>Legacy, CMS, WordPress</td></tr>
+                                    <tr><td>Endpoint</td><td><code>api.postmarkapp.com/email</code></td><td><code>smtp.postmarkapp.com:587</code></td></tr>
+                                    <tr><td>Batch</td><td>Up to 500/call</td><td>1 per connection</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Is my API token safe here?</summary>
+                        <p>Yes. Everything runs in your browser. Token is only sent to <code>api.postmarkapp.com</code> over HTTPS (or stays local in cURL). No backend, no cookies, no storage. Wiped on tab close.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>What's test@blackhole.postmarkapp.com?</summary>
+                        <p>A safe sink address from Postmark. Emails are accepted (you get a Message ID) but never delivered to any inbox. Perfect for testing.</p>
+                    </details>
+                </div>
+
+            </aside>
+        </div>
+
+        <p class="footer-note">
+            &#128274; Nothing stored. All data stays in-memory and is wiped on close.<br>
+            Calls go from your browser &rarr; <code>api.postmarkapp.com</code> (HTTPS). If CORS blocks, use cURL or server-side.<br>
+            Built by <a href="https://github.com/ajithrn" target="_blank" rel="noopener">ajithrn</a> &middot;
+            <a href="https://github.com/ajithrn/postmark-email-tester" target="_blank" rel="noopener">GitHub Repo</a> &middot;
+            MIT License
+        </p>
+    </div>
+
+    <script src="template.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
