@@ -122,6 +122,16 @@ textarea { resize: vertical; min-height: 100px; font-family: 'SF Mono','Fira Cod
 }
 .copy-smtp-btn:hover { border-color: #ffde00; color: #1a1a2e; }
 
+/* ─── Test SMTP button ──────────────────────────────────────────────────── */
+.btn-test-smtp {
+    padding: 0.35rem 0.75rem; border: 1px solid #28a745;
+    border-radius: 4px; background: #28a745; color: #fff; font-size: 0.7rem;
+    font-weight: 500; cursor: pointer; transition: all 0.15s;
+}
+.btn-test-smtp:hover { background: #218838; border-color: #218838; }
+.btn-test-smtp:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
+.smtp-test-result { margin-top: 0.5rem; margin-bottom: 0; }
+
 /* ─── Code examples ─────────────────────────────────────────────────────── */
 .code-examples { margin-top: 0.75rem; }
 .code-tabs {

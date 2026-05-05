@@ -182,6 +182,71 @@ function copyCurrentCode() {
     });
 }
 
+// ─── Copy SMTP test command (alias for copyCurl in SMTP mode) ──────────────
+function copySmtpTestCommand() {
+    var prevMode = currentMode;
+    currentMode = 'smtp';
+    copyCurl();
+    currentMode = prevMode;
+}
+
+// ─── Test SMTP Connection ──────────────────────────────────────────────────
+async function testSmtpConnection() {
+    var token = document.getElementById('serverToken').value.trim();
+    var resultEl = document.getElementById('smtpTestResult');
+
+    if (!token) {
+        resultEl.className = 'result smtp-test-result error';
+        resultEl.textContent = 'Enter your Server API Token first.';
+        return;
+    }
+
+    var btn = document.getElementById('btnTestSmtp');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"><\/span>Testing...';
+    resultEl.className = 'result smtp-test-result info';
+    resultEl.textContent = 'Connecting to smtp.postmarkapp.com...';
+
+    try {
+        var url = WORKER_URL ? WORKER_URL.replace('send.php', 'test-smtp.php') : 'api/test-smtp.php';
+        var res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: token })
+        });
+
+        var text = await res.text();
+        var data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error('Server returned invalid response. Make sure api/test-smtp.php is deployed and PHP is working.\n\nResponse: ' + text.substring(0, 200));
+        }
+
+        if (data.success) {
+            var msg = '✓ ' + data.message;
+            if (data.details) {
+                msg += '\n\nHost: ' + data.details.host;
+                msg += '\nPort: ' + data.details.port;
+                msg += '\nAuth: ' + data.details.auth;
+                msg += '\nEncryption: ' + data.details.encryption;
+            }
+            msg += '\n\nMake sure your From address is a verified Sender Signature or belongs to a verified domain in your Postmark server — otherwise emails will not be delivered.';
+            resultEl.className = 'result smtp-test-result success';
+            resultEl.textContent = msg;
+        } else {
+            resultEl.className = 'result smtp-test-result error';
+            resultEl.textContent = '✗ ' + (data.error || 'Connection failed') + '\n\nFailed at step: ' + (data.step || 'unknown');
+        }
+    } catch (err) {
+        resultEl.className = 'result smtp-test-result error';
+        resultEl.textContent = err.message;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Test SMTP Connection';
+    }
+}
+
 // ─── Build payload ─────────────────────────────────────────────────────────
 function buildPayload() {
     return {
@@ -267,7 +332,7 @@ async function sendEmail() {
     var payload = buildPayload();
 
     if (!token) { showResult('error', 'Server API Token is required.'); return; }
-    if (!payload.From) { showResult('error', 'Sender address is required.'); return; }
+    if (!payload.From) { showResult('error', 'Sender address is required.\n\nThe From address must be a verified Sender Signature or belong to a verified domain in your Postmark server.'); return; }
     if (!payload.To) { showResult('error', 'Recipient address is required.'); return; }
     if (!payload.Subject) { showResult('error', 'Subject is required.'); return; }
 
@@ -311,13 +376,14 @@ async function sendEmail() {
             body: body
         });
 
-        // Check if response is JSON
-        var contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-            throw new Error('Server returned non-JSON response (HTTP ' + res.status + '). The backend endpoint may not be configured correctly. Check that api/send.php is accessible.');
+        // Parse response safely
+        var text = await res.text();
+        var data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error('Server returned invalid response (not JSON). Make sure the PHP backend is deployed and accessible.\n\nHTTP ' + res.status);
         }
-
-        var data = await res.json();
 
         if (res.ok && (data.ErrorCode === 0 || data.success)) {
             var msg = 'Sent successfully via ' + (currentMode === 'api' ? 'API' : 'SMTP') + '!';
@@ -325,20 +391,42 @@ async function sendEmail() {
             if (data.To) msg += '\nTo: ' + data.To;
             if (data.SubmittedAt) msg += '\nSubmitted: ' + data.SubmittedAt;
             if (data.message) msg += '\n\n' + data.message;
+            msg += '\n\n⚠️ Note: Postmark accepted this email, but it will only be delivered if the From address (' + payload.From + ') is a verified Sender Signature or belongs to a verified domain in your Postmark server. If not verified, the email may be silently dropped.';
             showResult('success', msg);
         } else {
-            var errMsg = 'Error';
-            if (data.ErrorCode) errMsg += ' (' + data.ErrorCode + ')';
-            errMsg += '\n\n' + (data.Message || data.error || 'Unknown error');
+            var errMsg = '';
+
+            // Friendly error messages for common Postmark error codes
+            if (data.ErrorCode === 400) {
+                errMsg = 'Bad Request\n\n' + (data.Message || data.error || 'The request was invalid.');
+            } else if (data.ErrorCode === 405 || data.ErrorCode === 406) {
+                errMsg = 'Sender Not Allowed\n\n' + (data.Message || data.error || '');
+                errMsg += '\n\n💡 Your From address (' + payload.From + ') is not authorized to send from this Postmark server. Make sure it is either:\n• A confirmed Sender Signature, or\n• An address on a verified domain (with DKIM + Return-Path DNS records set up)';
+            } else if (data.ErrorCode === 300) {
+                errMsg = 'Invalid Email Request\n\n' + (data.Message || data.error || '');
+                errMsg += '\n\n💡 Check that From, To, and Subject are all valid.';
+            } else if (data.ErrorCode === 401 || res.status === 401) {
+                errMsg = 'Unauthorized\n\n' + (data.Message || data.error || '');
+                errMsg += '\n\n💡 Your Server API Token is invalid or inactive. Double-check it in Postmark → Server → API Tokens.';
+            } else if (data.ErrorCode === 422 || res.status === 422) {
+                errMsg = 'Unprocessable\n\n' + (data.Message || data.error || '');
+                errMsg += '\n\n💡 Postmark rejected the request. Common causes:\n• From address not verified\n• Invalid recipient address\n• Missing required fields';
+            } else {
+                errMsg = 'Error';
+                if (data.ErrorCode) errMsg += ' (' + data.ErrorCode + ')';
+                errMsg += '\n\n' + (data.Message || data.error || 'Unknown error');
+            }
+
             errMsg += '\n\nHTTP ' + res.status;
             showResult('error', errMsg);
         }
     } catch (err) {
-        document.getElementById('corsNote').style.display = 'block';
-        showResult('error',
-            'Request failed: ' + err.message
-            + '\n\nMake sure the app is hosted on a PHP server with api/send.php accessible.'
-        );
+        if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+            document.getElementById('corsNote').style.display = 'block';
+            showResult('error', 'Network error: Could not reach the server.\n\nMake sure the app is hosted on a PHP server with api/send.php accessible.');
+        } else {
+            showResult('error', err.message);
+        }
     } finally {
         btn.disabled = false;
         btn.textContent = currentMode === 'api' ? 'Send via API' : 'Send via SMTP';

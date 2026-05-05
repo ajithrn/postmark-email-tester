@@ -86,9 +86,11 @@
                         <div class="cfg-row"><span class="cfg-label">To:</span><span class="cfg-value" id="smtpTo">(enter recipient above)</span></div>
                     </div>
                     <div class="smtp-btn-row">
+                        <button type="button" class="btn-test-smtp" id="btnTestSmtp" onclick="testSmtpConnection()">Test SMTP Connection</button>
                         <button type="button" class="copy-smtp-btn" onclick="copySmtpTestCommand()">Copy SMTP test command</button>
                         <button type="button" class="copy-smtp-btn" onclick="toggleCodeExamples()">Show code examples</button>
                     </div>
+                    <div class="result smtp-test-result" id="smtpTestResult"></div>
 
                     <!-- Code Examples (toggled) -->
                     <div class="code-examples hidden" id="codeExamples">

@@ -1,13 +1,19 @@
 <?php
 // Webhook endpoint for GitHub auto-deploy
-// Domain: pmtester.ajithrn.com
+// Only responds to POST requests with valid GitHub signature
+
+// Block direct browser access — return 404 as if this file doesn't exist
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(404);
+    exit;
+}
 
 $secret = getenv('WEBHOOK_SECRET');
 $deployPath = getenv('DEPLOY_PATH');
 
 if (!$secret || !$deployPath) {
-    http_response_code(500);
-    die('Server misconfigured: missing environment variables');
+    http_response_code(404);
+    exit;
 }
 
 // Verify GitHub signature
@@ -16,15 +22,15 @@ $payload = file_get_contents('php://input');
 $expectedSignature = 'sha256=' . hash_hmac('sha256', $payload, $secret);
 
 if (!hash_equals($expectedSignature, $hubSignature)) {
-    http_response_code(403);
-    die('Invalid signature');
+    http_response_code(404);
+    exit;
 }
 
 // Only deploy on pushes to main branch
 $data = json_decode($payload, true);
 if (($data['ref'] ?? '') !== 'refs/heads/main') {
     http_response_code(200);
-    die('Not main branch, skipping');
+    exit;
 }
 
 // Run git pull

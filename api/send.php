@@ -6,6 +6,10 @@
  * No dependencies required — uses PHP built-in functions.
  */
 
+// Suppress PHP warnings/notices from breaking JSON output
+error_reporting(0);
+ini_set('display_errors', '0');
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -62,7 +66,7 @@ function sendViaAPI($token, $payload) {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
-    curl_close($ch);
+    unset($ch);
 
     if ($error) {
         http_response_code(500);
@@ -97,9 +101,9 @@ function sendViaSMTP($token, $payload) {
         return;
     }
 
-    // Connect to Postmark SMTP
-    $host = 'ssl://smtp.postmarkapp.com';
-    $port = 465;
+    // Connect to Postmark SMTP (port 587 with STARTTLS)
+    $host = 'smtp.postmarkapp.com';
+    $port = 587;
     $timeout = 30;
 
     $socket = @fsockopen($host, $port, $errno, $errstr, $timeout);
@@ -139,6 +143,24 @@ function sendViaSMTP($token, $payload) {
         $code = $sendCmd("EHLO postmark-email-tester");
         if ($code !== 250) {
             throw new Exception("EHLO failed: $smtpResponse");
+        }
+
+        // STARTTLS
+        $code = $sendCmd("STARTTLS");
+        if ($code !== 220) {
+            throw new Exception("STARTTLS failed: $smtpResponse");
+        }
+
+        // Upgrade connection to TLS
+        $crypto = stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT);
+        if (!$crypto) {
+            throw new Exception("TLS handshake failed");
+        }
+
+        // EHLO again after STARTTLS
+        $code = $sendCmd("EHLO postmark-email-tester");
+        if ($code !== 250) {
+            throw new Exception("EHLO after STARTTLS failed: $smtpResponse");
         }
 
         // AUTH LOGIN
