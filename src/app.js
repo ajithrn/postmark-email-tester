@@ -3,7 +3,7 @@ var currentMode = 'api'; // 'api' or 'smtp'
 var currentSenderType = 'email'; // 'email' or 'domain'
 var activeTab = 'node';
 
-// Worker URL — set this to your Cloudflare Worker URL
+// Worker URL — set this to your backend URL
 var WORKER_URL = '';
 
 // ─── Init ───────────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ function init() {
     loadTemplate();
     setMode('api');
     setSenderType('email');
-    // Check for worker URL in page (allows self-hosted config)
+    // Auto-detect backend URL
     var workerMeta = document.querySelector('meta[name="worker-url"]');
     if (workerMeta) {
         WORKER_URL = workerMeta.getAttribute('content');
@@ -314,7 +314,7 @@ async function sendEmail() {
         // Check if response is JSON
         var contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-            throw new Error('Server returned non-JSON response (HTTP ' + res.status + '). The /api/send endpoint may not be deployed. Check that your CF Pages Functions are working.');
+            throw new Error('Server returned non-JSON response (HTTP ' + res.status + '). The backend endpoint may not be configured correctly. Check that api/send.php is accessible.');
         }
 
         var data = await res.json();
@@ -337,7 +337,7 @@ async function sendEmail() {
         document.getElementById('corsNote').style.display = 'block';
         showResult('error',
             'Request failed: ' + err.message
-            + '\n\nUse the copy button to get a terminal command, or deploy the Cloudflare Worker for browser-based sending.'
+            + '\n\nMake sure the app is hosted on a PHP server with api/send.php accessible.'
         );
     } finally {
         btn.disabled = false;

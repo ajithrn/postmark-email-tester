@@ -1,49 +1,37 @@
 # Postmark Email Tester
 
-A simple tool to test sending emails via [Postmark](https://postmarkapp.com) — supports both REST API and SMTP modes.
+A simple tool to test sending emails via [Postmark](https://postmarkapp.com) — supports both REST API and real SMTP sending.
 
 > Not affiliated with Postmark or ActiveCampaign.
 
 ## Features
 
-- Send test emails via REST API or SMTP
+- Send test emails via REST API or SMTP (both actually send)
 - Verified Email and Verified Domain sender options
 - SMTP config display with code examples (Node.js, Python, PHP)
-- Copy-to-clipboard terminal commands (cURL / SMTP)
+- Copy-to-clipboard terminal commands
 - Built-in HTML email template
 - Developer resources and FAQ
 - Zero storage — nothing persisted, all in-memory
 
+## Requirements
+
+- PHP 7.4+ with `curl` and `openssl` extensions
+- Any web server (Apache, Nginx, etc.)
+
 ## Local Development
 
 ```bash
-# Open directly in browser
-open src/index.html
-
-# Or use a local server
-npx serve src
-python3 -m http.server -d src
+# Full functionality with PHP built-in server
+php -S localhost:8000
+# Open http://localhost:8000
 ```
 
-### With proxy (send buttons work)
+## Deploy
 
-```bash
-# Install wrangler if you haven't
-npm install -g wrangler
+Upload to any PHP hosting. No dependencies, no build step, no composer.
 
-# Build and run locally with CF Pages Functions
-./build.sh
-npx wrangler pages dev dist
-```
-
-This starts a local environment at `http://localhost:8788` with the `/api/send` proxy working.
-
-### Build
-
-```bash
-./build.sh
-# → dist/index.html (single self-contained file)
-```
+See [docs/deploy.md](docs/deploy.md) for details.
 
 ## Docs
 

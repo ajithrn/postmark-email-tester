@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Browser (static HTML)                          │
+│  Browser (index.html + src/*.js)                │
 │                                                 │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
 │  │ Mode     │  │ Form     │  │ Info Panel   │  │
@@ -17,57 +17,59 @@
 │         ▼           ▼           ▼               │
 │  [Send Button] [Copy cURL] [Copy SMTP cmd]      │
 └─────────┬───────────────────────────────────────┘
-          │ POST /api/send
+          │ POST api/send.php
           ▼
-┌─────────────────────────────┐
-│  CF Pages Function          │
-│  (functions/api/send.js)    │
-│                             │
-│  - Receives {mode, token,   │
-│    payload}                 │
-│  - Forwards to Postmark API │
-│  - Returns response + CORS  │
-└─────────────┬───────────────┘
-              │ POST https://api.postmarkapp.com/email
-              ▼
-┌─────────────────────────────┐
-│  Postmark API               │
-│  - Validates token          │
-│  - Sends email              │
-│  - Returns MessageID        │
-└─────────────────────────────┘
+┌─────────────────────────────────┐
+│  PHP Backend (api/send.php)     │
+│                                 │
+│  mode === 'api'                 │
+│    → cURL to Postmark REST API  │
+│                                 │
+│  mode === 'smtp'                │
+│    → TCP socket to Postmark     │
+│      SMTP (real SMTP handshake) │
+└─────────────┬───────────────────┘
+              │
+    ┌─────────┴─────────┐
+    ▼                   ▼
+┌────────────┐  ┌──────────────────┐
+│ Postmark   │  │ Postmark SMTP    │
+│ REST API   │  │ smtp.postmark    │
+│            │  │ app.com:465      │
+└────────────┘  └──────────────────┘
 ```
 
 ## Data Flow
 
 1. User fills in token, sender, recipient, message
-2. Clicks "Send via API →" or "Send via SMTP →"
-3. Browser POSTs to `/api/send` with `{ mode, token, payload }`
-4. CF Function forwards to Postmark with the token as auth header
-5. Postmark responds with success/error
-6. CF Function relays response back to browser
-7. Browser shows result (MessageID on success, error details on failure)
+2. Clicks "Send via API" or "Send via SMTP"
+3. Browser POSTs to `api/send.php` with `{ mode, token, payload }`
+4. PHP backend either:
+   - **API mode**: cURL POST to `api.postmarkapp.com/email`
+   - **SMTP mode**: Opens socket to `smtp.postmarkapp.com:465`, authenticates, sends email
+5. Backend returns JSON response to browser
+6. Browser shows result (MessageID on success, error on failure)
 
 ## Security Model
 
-- **No secrets stored anywhere** — token is provided by the user at runtime
-- **Token transit**: Browser → CF edge (HTTPS) → Postmark (HTTPS)
-- **CF Function is stateless** — no logging, no persistence
-- **Browser state** — all in-memory, cleared on `beforeunload`
-- **No external dependencies** — zero CDN scripts, no analytics, no tracking
+- **No secrets stored** — token provided by user at runtime
+- **Token transit**: Browser → your server (same origin) → Postmark (HTTPS)
+- **PHP is stateless** — no logging, no file writes, no database
+- **Browser state** — all in-memory, cleared on page close
+- **No external JS dependencies** — zero CDN scripts, no analytics
 
 ## Layout (CSS Grid)
 
 ```
-Desktop (≥1024px):          Mobile (<1024px):
-┌────────────┬─────────┐    ┌──────────────────┐
-│            │         │    │                  │
-│   Form     │  Info   │    │      Form        │
-│   (60%)    │  (40%)  │    │                  │
-│            │         │    ├──────────────────┤
-│            │ sticky  │    │      Info        │
-│            │         │    │                  │
-└────────────┴─────────┘    └──────────────────┘
+Desktop (>=1024px):         Mobile (<1024px):
+┌────────────┬─────────┐   ┌──────────────────┐
+│            │         │   │                  │
+│   Form     │  Info   │   │      Form        │
+│   (60%)    │  (40%)  │   │                  │
+│            │         │   ├──────────────────┤
+│            │ sticky  │   │      Info        │
+│            │         │   │                  │
+└────────────┴─────────┘   └──────────────────┘
 
 grid-template-columns: 3fr 2fr (desktop)
 grid-template-columns: 1fr (mobile)
@@ -77,9 +79,8 @@ grid-template-columns: 1fr (mobile)
 
 | File | Role |
 |------|------|
-| `src/index.html` | HTML structure, layout, all UI elements |
+| `index.html` | HTML structure, layout, all UI elements |
 | `src/styles.css` | Visual styling, grid layout, responsive breakpoints |
 | `src/template.js` | Generates the test email HTML (mode-aware) |
 | `src/app.js` | All interactivity: mode toggle, send, copy, preview |
-| `functions/api/send.js` | Server-side proxy to Postmark (CORS bypass) |
-| `build.sh` | Combines src/ into a single deployable HTML file |
+| `api/send.php` | Server-side: API sending (cURL) + SMTP sending (socket) |

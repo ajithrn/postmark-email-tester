@@ -7,9 +7,9 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23ffde00'/></svg>">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23ffde00'/></svg>">
     <meta name="theme-color" content="#ffde00">
-    <!-- Set your Cloudflare Worker URL here to enable browser-based sending -->
-    <!-- <meta name="worker-url" content="https://your-worker.your-subdomain.workers.dev"> -->
-    <link rel="stylesheet" href="styles.css">
+    <!-- Backend endpoint for sending emails -->
+    <meta name="worker-url" content="api/send.php">
+    <link rel="stylesheet" href="src/styles.css">
 </head>
 <body>
     <div class="page-wrap">
@@ -123,8 +123,8 @@
                     <button type="button" class="btn-curl" id="btnCurl" onclick="copyCurl()">Copy as cURL</button>
                 </div>
                 <div class="cors-note" id="corsNote">
-                    <strong>CORS blocked?</strong> Postmark blocks browser-side API calls to protect your token.
-                    Use <strong>Copy as cURL</strong> and run in terminal, or see the docs on the right.
+                    <strong>Connection issue?</strong> Make sure this app is hosted on a PHP server.
+                    Use <strong>Copy as cURL</strong> to test from terminal without a server.
                 </div>
                 <div class="result" id="result"></div>
                 <button type="button" class="btn-clear" onclick="clearAll()">Clear all data &amp; reset</button>
@@ -226,7 +226,7 @@
         </p>
     </div>
 
-    <script src="template.js"></script>
-    <script src="app.js"></script>
+    <script src="src/template.js"></script>
+    <script src="src/app.js"></script>
 </body>
 </html>
