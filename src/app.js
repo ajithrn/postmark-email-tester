@@ -38,10 +38,10 @@ function setMode(mode) {
     var sendBtn = document.getElementById('btnSend');
     var curlBtn = document.getElementById('btnCurl');
     if (mode === 'api') {
-        sendBtn.textContent = 'Send via API \u2192';
+        sendBtn.textContent = 'Send via API';
         curlBtn.textContent = 'Copy as cURL';
     } else {
-        sendBtn.textContent = 'Send via SMTP \u2192';
+        sendBtn.textContent = 'Send via SMTP';
         curlBtn.textContent = 'Copy SMTP command';
     }
 
@@ -273,9 +273,9 @@ async function sendEmail() {
 
     var btn = document.getElementById('btnSend');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"><\/span>Sending\u2026';
+    btn.innerHTML = '<span class="spinner"><\/span>Sending...';
     document.getElementById('corsNote').style.display = 'none';
-    showResult('info', 'Sending via ' + (currentMode === 'api' ? 'API' : 'SMTP') + '\u2026');
+    showResult('info', 'Sending via ' + (currentMode === 'api' ? 'API' : 'SMTP') + '...');
 
     // Determine endpoint
     var url;
@@ -335,7 +335,7 @@ async function sendEmail() {
         );
     } finally {
         btn.disabled = false;
-        btn.textContent = currentMode === 'api' ? 'Send via API \u2192' : 'Send via SMTP \u2192';
+        btn.textContent = currentMode === 'api' ? 'Send via API' : 'Send via SMTP';
     }
 }
 

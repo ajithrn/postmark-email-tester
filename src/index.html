@@ -111,7 +111,7 @@
                     <input type="text" id="subject" value="Postmark Test Email">
                     <label for="htmlBody">HTML Body</label>
                     <textarea id="htmlBody"></textarea>
-                    <span class="preview-toggle" onclick="togglePreview()">Preview email &#8599;</span>
+                    <span class="preview-toggle" onclick="togglePreview()">Preview email &nearr;</span>
                     <div class="preview-frame" id="previewFrame">
                         <iframe id="previewIframe" sandbox="allow-same-origin" title="Email preview"></iframe>
                     </div>
@@ -119,11 +119,11 @@
 
                 <!-- Action Buttons (both modes) -->
                 <div class="btn-row" id="btnRow">
-                    <button type="button" class="btn-send" id="btnSend" onclick="sendEmail()">Send via API &rarr;</button>
+                    <button type="button" class="btn-send" id="btnSend" onclick="sendEmail()">Send via API</button>
                     <button type="button" class="btn-curl" id="btnCurl" onclick="copyCurl()">Copy as cURL</button>
                 </div>
                 <div class="cors-note" id="corsNote">
-                    &#9888;&#65039; <strong>CORS blocked?</strong> Postmark blocks browser-side API calls to protect your token.
+                    <strong>CORS blocked?</strong> Postmark blocks browser-side API calls to protect your token.
                     Use <strong>Copy as cURL</strong> and run in terminal, or see the docs on the right.
                 </div>
                 <div class="result" id="result"></div>
@@ -218,7 +218,7 @@
         </div>
 
         <p class="footer-note">
-            &#128274; Nothing stored. All data stays in-memory and is wiped on close.<br>
+            Nothing stored. All data stays in-memory and is wiped on close.<br>
             Calls go from your browser &rarr; <code>api.postmarkapp.com</code> (HTTPS). If CORS blocks, use cURL or server-side.<br>
             Built by <a href="https://github.com/ajithrn" target="_blank" rel="noopener">ajithrn</a> &middot;
             <a href="https://github.com/ajithrn/postmark-email-tester" target="_blank" rel="noopener">GitHub Repo</a> &middot;
